@@ -80,7 +80,7 @@ namespace SimpleBookKeepingMobile
             {
                 await Application.Current.MainPage.DisplayAlert(
                     "Error",
-                    "An unexpected error occurred. Please try again.",
+                    ex.Message,
                     "OK");
             });
         }

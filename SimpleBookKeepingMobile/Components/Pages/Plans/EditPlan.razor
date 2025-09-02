@@ -4,9 +4,9 @@
 @using SimpleBookKeepingMobile.CommandAndQueries.Plans.Commands
 @using SimpleBookKeepingMobile.CommandAndQueries.Plans.Queries
 @using SimpleBookKeepingMobile.DtoModels
-@using SimpleBookKeepingMobile.InternalServices
+@using SimpleBookKeepingMobile.InternalServices.Interfaces
 @inject NavigationManager NavigationManager
-@* @inject NotificationService notification *@
+@inject INotificationService notification
 @inject IMediator _mediator
 
 <EditForm Model="@Plan" OnValidSubmit="@HandleValidSubmit" OnInvalidSubmit="@HandleInvalidSubmit">
@@ -93,12 +93,6 @@
         }
     }
 
-    private void HandleUserSelection(ChangeEventArgs e)
-    {
-        var selectedOptions = (string[])e.Value;
-        Plan.UserMembers = selectedOptions.Select(Guid.Parse).ToList();
-    }
-
     private async Task SavePlanAsync(PlanModel model)
     {
         model.UserMembers = new List<Guid>() { Guid.Empty };
@@ -119,12 +113,12 @@
             {
                 
                 await SavePlanAsync(Plan);
-                //notification.ShowSuccess("План успешно создан");
+                notification.ShowSuccess("План успешно создан");
             }
             else
             {
                 await SavePlanAsync(Plan);
-                //notification.ShowSuccess("План успешно изменен");
+                notification.ShowSuccess("План успешно изменен");
             }
 
             NavigationManager.NavigateTo("/plans");
@@ -133,7 +127,7 @@
         {
             // Handle error
             Debug.WriteLine($"Error saving plan: {ex.Message}");
-            //notification.ShowError("Ошибка при сохранении плана");
+            notification.ShowError("Ошибка при сохранении плана");
         }
     }
 
@@ -152,14 +146,14 @@
         try
         {
             await _mediator.Send(new RemovePlanCommand { PlanId = PlanId });
-            //notification.ShowSuccess("План успешно удален");
+            notification.ShowSuccess("План успешно удален");
             NavigationManager.NavigateTo("/plans");
         }
         catch (Exception ex)
         {
             // Handle error
             Debug.WriteLine($"Error deleting plan: {ex.Message}");
-            //notification.ShowError("Ошибка при удалении плана");
+            notification.ShowError("Ошибка при удалении плана");
         }
     }
 
