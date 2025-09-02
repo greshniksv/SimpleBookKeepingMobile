@@ -1,0 +1,104 @@
+﻿<!-- NotificationToast.razor -->
+@using Microsoft.AspNetCore.Components
+@using SimpleBookKeepingMobile.DtoModels
+@using SimpleBookKeepingMobile.Enums
+@using SimpleBookKeepingMobile.InternalServices
+@using SimpleBookKeepingMobile.InternalServices.Interfaces
+@implements IDisposable
+
+<div class="notification-container">
+    @foreach (var notification in _activeNotifications)
+    {
+        <div key="@notification.Id" class="notification @GetNotificationClass(notification.Type)" @onclick="() => RemoveNotification(notification.Id)">
+            <div class="notification-content">
+                <div class="notification-icon">
+                    @GetIcon(notification.Type)
+                </div>
+                <div class="notification-message">
+                    @notification.Message
+                </div>
+            </div>
+            <div class="notification-progress">
+                <div class="progress-bar" style="animation: progress 3s linear;"></div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private INotificationService NotificationService { get; set; }
+
+    private readonly List<NotificationModel> _activeNotifications = new();
+    private readonly Dictionary<Guid, Timer> _notificationTimers = new();
+
+    protected override void OnInitialized()
+    {
+        ((NotificationService)NotificationService).OnNotification += HandleNotification;
+    }
+
+    private void HandleNotification(NotificationModel notification)
+    {
+        _activeNotifications.Add(notification);
+        StateHasChanged();
+
+        // Auto-remove after 3 seconds
+        var timer = new Timer(_ =>
+        {
+            InvokeAsync(() => RemoveNotification(notification.Id));
+        }, null, 3000, Timeout.Infinite);
+
+        _notificationTimers[notification.Id] = timer;
+    }
+
+    private void RemoveNotification(Guid id)
+    {
+        var notification = _activeNotifications.FirstOrDefault(n => n.Id == id);
+        if (notification != null)
+        {
+            _activeNotifications.Remove(notification);
+            
+            if (_notificationTimers.TryGetValue(id, out var timer))
+            {
+                timer.Dispose();
+                _notificationTimers.Remove(id);
+            }
+            
+            StateHasChanged();
+        }
+    }
+
+    private string GetNotificationClass(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.Info => "notification-info",
+            NotificationType.Warning => "notification-warning",
+            NotificationType.Error => "notification-error",
+            NotificationType.Success => "notification-success",
+            _ => "notification-info"
+        };
+    }
+
+    private string GetIcon(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.Info => "ℹ️",
+            NotificationType.Warning => "⚠️",
+            NotificationType.Error => "❌",
+            NotificationType.Success => "✅",
+            _ => "ℹ️"
+        };
+    }
+
+    public void Dispose()
+    {
+        ((NotificationService)NotificationService).OnNotification -= HandleNotification;
+        
+        foreach (var timer in _notificationTimers.Values)
+        {
+            timer.Dispose();
+        }
+        _notificationTimers.Clear();
+    }
+}

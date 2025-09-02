@@ -1,0 +1,88 @@
+﻿@page "/plans"
+@using System.Diagnostics
+@using MediatR
+@using SimpleBookKeepingMobile.CommandAndQueries.Plans.Queries
+@using SimpleBookKeepingMobile.DtoModels
+@inject IMediator _mediator;
+@inject NavigationManager Navigation
+
+<div class="form-control">
+    <i class="bi-plus-square-dotted" @onclick="GoToNewPlan" style="font-size: 2rem; color: cornflowerblue; cursor: pointer;"></i>
+
+    <div class="list-group" id="plan_list">
+        @if (items != null && items.Any())
+        {
+            @foreach (var item in items)
+            {
+                <a href="#" @onclick="() => EditPlan(item.Plan.Id)" class="plan-item list-group-item list-group-item-action" aria-current="true">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">@item.Plan.Name</h5>
+                        <small>@item.DurationDays дней</small>
+                    </div>
+                    <p class="mb-1">Начиная с @item.Plan.Start.ToShortDateString() по @item.Plan.End.ToShortDateString()</p>
+                    <small>Баланс: @item.Plan.Balance руб.</small>
+                </a>
+            }
+        } else if (!items.Any())
+        {
+            <div>Нет планов...</div>
+        }
+        else
+        {
+            <div>Загрузка планов...</div>
+        }
+    </div>
+</div>
+
+<button type="button" @onclick="@GoToNewPlan" class="btn btn-success p-2">
+    Новый план
+</button>
+
+@code {
+    private List<CurrentPlan>? items;
+    private bool isLoading = true;
+
+    record CurrentPlan(PlanModel Plan, int DurationDays);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlans();
+    }
+
+    private async Task LoadPlans()
+    {
+        isLoading = true;
+        try
+        {
+            items = new List<CurrentPlan>();
+            var response = await _mediator.Send(new GetPlansQuery { UserId = Guid.Empty });
+            foreach (var planModel in response)
+            {
+                items.Add(new CurrentPlan(planModel, CalculateDurationDays(planModel.Start, planModel.End)));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading plans: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private int CalculateDurationDays(DateTime start, DateTime end)
+    {
+        return (int)(end - start).TotalDays;
+    }
+
+    private void GoToNewPlan()
+    {
+        Navigation.NavigateTo($"/edit-plan/{Guid.Empty}");
+    }
+
+    private void EditPlan(Guid planId)
+    {
+        Navigation.NavigateTo($"/edit-plan/{planId}");
+    }
+}

@@ -1,0 +1,127 @@
+﻿@page "/costs/{planId:guid}"
+@using MediatR
+@using SimpleBookKeepingMobile.CommandAndQueries.Costs.Queries
+@using SimpleBookKeepingMobile.DtoModels
+@inject NavigationManager NavigationManager
+@inject IMediator Mediator
+
+<PageTitle>Расходы</PageTitle>
+
+<div class="form-control">
+    <!-- Add New Cost Button -->
+    <div class="mb-3">
+        <i class="bi bi-plus-square-dotted" 
+           style="font-size: 2rem; color: cornflowerblue; cursor: pointer;" 
+           @onclick="GoToNewCost">
+        </i>
+    </div>
+
+    <!-- Costs List -->
+    <div class="list-group">
+        @if (CostList?.Any() == true)
+        {
+            @foreach (var cost in CostList)
+            {
+                <div class="cost-item list-group-item list-group-item-action" 
+                     @onclick="() => EditCost(cost.Id)"
+                     @onmouseover="() => SetHover(cost.Id, true)"
+                     @onmouseout="() => SetHover(cost.Id, false)"
+                     style="cursor: pointer; transition: background-color 0.2s ease;"
+                     :class="{'active': IsHovered(cost.Id)}">
+                    
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">@cost.Name</h5>
+                        <small>@GetCostDetailsCount(cost)</small>
+                    </div>
+                    <small>Сумма: @GetCostSum(cost).ToString("N0") руб.</small>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="list-group-item text-muted">
+                Нет расходов для отображения
+            </div>
+        }
+    </div>
+    
+    <!-- Total Sum -->
+    <div class="form-group row mt-3">
+        <label class="col-sm-2 col-form-label fw-bold">
+            Итого: @TotalSum.ToString("N0") руб
+        </label>
+    </div>
+</div>
+
+<button type="button" @onclick="@GoToNewCost" class="btn btn-success p-2">
+    Новый план
+</button>
+
+@code {
+    [Parameter] public Guid PlanId { get; set; }
+    
+    private IList<CostModel> CostList { get; set; }
+    private decimal TotalSum { get; set; }
+    private HashSet<Guid> HoveredItems { get; set; } = new HashSet<Guid>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCosts();
+    }
+
+    private async Task LoadCosts()
+    {
+        try
+        {
+            CostList = await Mediator.Send(new GetCostsQuery { PlanId = PlanId });
+            CalculateTotalSum();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading costs: {ex.Message}");
+            // Handle error (show notification, etc.)
+        }
+    }
+
+    private void CalculateTotalSum()
+    {
+        TotalSum = CostList.Sum(cost => 
+            cost.CostDetails?.Sum(detail => detail.Value ?? 0) ?? 0);
+    }
+
+    private decimal GetCostSum(CostModel cost)
+    {
+        return cost.CostDetails?.Sum(detail => detail.Value ?? 0) ?? 0;
+    }
+
+    private string GetCostDetailsCount(CostModel cost)
+    {
+        var count = cost.CostDetails?.Count ?? 0;
+        return count == 0 ? "Нет записей" : $"{count} записей";
+    }
+
+    private void GoToNewCost()
+    {
+        NavigationManager.NavigateTo($"/edit-costs/{PlanId}/{Guid.Empty}");
+    }
+
+    private void EditCost(Guid costId)
+    {
+        NavigationManager.NavigateTo($"/edit-costs/{PlanId}/{costId}");
+    }
+
+    private void SetHover(Guid costId, bool isHovered)
+    {
+        if (isHovered)
+            HoveredItems.Add(costId);
+        else
+            HoveredItems.Remove(costId);
+        
+        StateHasChanged();
+    }
+
+    private bool IsHovered(Guid costId)
+    {
+        return HoveredItems.Contains(costId);
+    }
+}

@@ -1,0 +1,173 @@
+﻿@page "/edit-plan/{planId:guid}"
+@using System.Diagnostics
+@using MediatR
+@using SimpleBookKeepingMobile.CommandAndQueries.Plans.Commands
+@using SimpleBookKeepingMobile.CommandAndQueries.Plans.Queries
+@using SimpleBookKeepingMobile.DtoModels
+@using SimpleBookKeepingMobile.InternalServices
+@inject NavigationManager NavigationManager
+@* @inject NotificationService notification *@
+@inject IMediator _mediator
+
+<EditForm Model="@Plan" OnValidSubmit="@HandleValidSubmit" OnInvalidSubmit="@HandleInvalidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-control">
+        <input type="hidden" @bind-value="@Plan.Id" />
+
+        <div class="mb-3">
+            <label for="planName" class="form-label">Название</label>
+            <InputText id="planName" class="form-control" @bind-Value="@Plan.Name" />
+            <ValidationMessage For="@(() => Plan.Name)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="planStart" class="form-label">Начало</label>
+            <InputDate id="planStart" class="form-control" @bind-Value="@Plan.Start" />
+            <ValidationMessage For="@(() => Plan.Start)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="planEnd" class="form-label">Завершение</label>
+            <InputDate id="planEnd" class="form-control" @bind-Value="@Plan.End" />
+            <ValidationMessage For="@(() => Plan.End)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="planBalance" class="form-label">Сумма</label>
+            <InputNumber id="planBalance" class="form-control" @bind-Value="@Plan.Balance" />
+            <ValidationMessage For="@(() => Plan.Balance)" />
+        </div>
+
+        <div class="pt-3 pb-2">
+            <button type="submit" class="btn btn-success p-2">
+                @(IsNewPlan ? "Добавить" : "Сохранить")
+            </button>
+            <button type="button" @onclick="@Cancel" class="btn btn-secondary p-2">Отмена</button>
+            @if (!IsNewPlan)
+            {
+                <button type="button" @onclick="@DeletePlan" class="btn btn-danger p-2">Удалить</button>
+            }
+        </div>
+    </div>
+
+    <div class="form-control d-grid gap-2 mt-1 pb-2">
+        <label class="form-label">Содержание</label>
+        <button type="button" @onclick="@GoToCost" class="btn btn-success p-2" disabled="@IsNewPlan">
+            Расходы
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public Guid PlanId { get; set; }
+
+    private PlanModel Plan { get; set; } = new PlanModel();
+    private bool IsNewPlan => PlanId == Guid.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!IsNewPlan)
+        {
+            await LoadPlan();
+        }
+        else
+        {
+            Plan.Start = DateTime.Now;
+            Plan.End = DateTime.Now.AddDays(15);
+        }
+    }
+
+    private async Task LoadPlan()
+    {
+        try
+        {
+            Plan = await _mediator.Send(new GetPlanQuery { PlanId = PlanId });
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Debug.WriteLine($"Error loading plan: {ex.Message}");
+        }
+    }
+
+    private void HandleUserSelection(ChangeEventArgs e)
+    {
+        var selectedOptions = (string[])e.Value;
+        Plan.UserMembers = selectedOptions.Select(Guid.Parse).ToList();
+    }
+
+    private async Task SavePlanAsync(PlanModel model)
+    {
+        model.UserMembers = new List<Guid>() { Guid.Empty };
+        await _mediator.Send(new SavePlanCommand
+        {
+            PlanModel = model,
+            UserId = Guid.Empty
+        });
+
+        Debug.WriteLine("Plan saved");
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (IsNewPlan)
+            {
+                
+                await SavePlanAsync(Plan);
+                //notification.ShowSuccess("План успешно создан");
+            }
+            else
+            {
+                await SavePlanAsync(Plan);
+                //notification.ShowSuccess("План успешно изменен");
+            }
+
+            NavigationManager.NavigateTo("/plans");
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Debug.WriteLine($"Error saving plan: {ex.Message}");
+            //notification.ShowError("Ошибка при сохранении плана");
+        }
+    }
+
+    private void HandleInvalidSubmit()
+    {
+        // Validation errors are handled by ValidationSummary
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/plans");
+    }
+
+    private async Task DeletePlan()
+    {
+        try
+        {
+            await _mediator.Send(new RemovePlanCommand { PlanId = PlanId });
+            //notification.ShowSuccess("План успешно удален");
+            NavigationManager.NavigateTo("/plans");
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Debug.WriteLine($"Error deleting plan: {ex.Message}");
+            //notification.ShowError("Ошибка при удалении плана");
+        }
+    }
+
+    private void GoToCost()
+    {
+        if (!IsNewPlan)
+        {
+            NavigationManager.NavigateTo($"/costs/{PlanId}");
+        }
+    }
+}

@@ -1,0 +1,128 @@
+﻿@page "/"
+@using MediatR
+@using SimpleBookKeepingMobile.CommandAndQueries.Plans.Queries
+@using SimpleBookKeepingMobile.DtoModels
+@inject IMediator _mediator
+@inject NavigationManager Navigation
+
+<div id="home_base" class="form-control text-center align-items-center">
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (planStatuses?.Any() == true)
+    {
+        @foreach (var plan in planStatuses)
+        {
+            <div class="main-plan-item form-control mt-2">
+                <div class="row mb-1 pt-4">
+                    <div class="col">
+                        <div class="form-outline">
+                            <label class="form-label"><h1>@plan.Name</h1></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-1">
+                    <div class="col">
+                        <div class="form-outline">
+                            <label class="form-label">В кошельке: @plan.Rest</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col">
+                        <div class="form-outline">
+                            <label class="form-label">Текущее время: @plan.CurrentDateTime</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="progress">
+                    <div style="width: @(plan.Progress)%" 
+                         class="progress-bar" 
+                         role="progressbar" 
+                         aria-valuenow="@plan.Progress" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
+                </div>
+
+                <div id="home_list" class="list-group pt-4">
+                    @foreach (var cost in plan.CostStatusModels)
+                    {
+                        <a href="#" @onclick="() => GoToSpend(cost.Id)" 
+                           class="list-group-item list-group-item-action" 
+                           aria-current="true">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h7 class="mb-1">@cost.Name</h7>
+                                <small>@cost.Balance руб</small>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-info">
+            Нет активных планов
+        </div>
+    }
+</div>
+
+@code {
+    private List<PlanStatusModel>? planStatuses;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlanStatuses();
+    }
+
+    private async Task LoadPlanStatuses()
+    {
+        isLoading = true;
+        try
+        {
+            Guid userId = Guid.Empty;
+            List<PlanStatusModel> planStatusModels = new ();
+            var activePlans = await _mediator.Send(new GetPlansQuery { IsActive = true, UserId = userId });
+            foreach (var activePlan in activePlans)
+            {
+                var planStatus = await _mediator.Send(new GetPlanStatusQuery { PlanId = activePlan.Id });
+                planStatus.CurrentDateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
+                planStatusModels.Add(planStatus);
+            }
+
+            planStatuses = planStatusModels;
+        }
+        catch (Exception ex)
+        {
+            // Handle error - you might want to show a toast notification
+            Console.WriteLine($"Error loading plan statuses: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoToSpend(Guid costId)
+    {
+        Navigation.NavigateTo($"/spend/{costId}");
+    }
+
+    // Helper class for API response
+    private class ApiResponse<T>
+    {
+        public T? Result { get; set; }
+        public string? Error { get; set; }
+    }
+}

@@ -1,0 +1,216 @@
+﻿@page "/edit-costs/{PlanId:guid}/{CostId:guid}"
+@using System.Diagnostics
+@using MediatR
+@using SimpleBookKeepingMobile.CommandAndQueries.Costs.Commands
+@using SimpleBookKeepingMobile.CommandAndQueries.Costs.Queries
+@using SimpleBookKeepingMobile.DtoModels
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+
+<EditForm Model="@costModel" OnValidSubmit="@Save">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="container">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col">
+                <h3>@(CostId == Guid.Empty ? "Create Cost" : "Edit Cost")</h3>
+            </div>
+        </div>
+
+        <!-- Cost Name -->
+        <div class="row mb-3">
+            <div class="col">
+                <label for="costName" class="form-label">Cost Name</label>
+                <InputText id="costName" @bind-Value="costModel.Name" class="form-control" />
+                <ValidationMessage For="@(() => costModel.Name)" />
+            </div>
+        </div>
+
+        <!-- Cost Details Table -->
+        <div class="row mb-3">
+            <div class="col">
+                <h5>Cost Details</h5>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var detail in costModel.CostDetails)
+                        {
+                            <tr>
+                                <td>@detail.Date.ToString("dd.MM.yyyy")</td>
+                                <td>
+                                    <InputNumber @bind-Value="detail.Value" class="form-control" />
+                                    <ValidationMessage For="@(() => detail.Value)" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Generator Block -->
+        <div class="row mb-3">
+            <div class="col">
+                <h5>Generator</h5>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col">
+                                <label class="form-label">Days of Week:</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var day in daysOfWeek)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="@($"day{(int)day.Key}")"
+                                                   checked="@day.Value"
+                                                   @onchange="@((e) => ToggleDay(day.Key, (bool)e.Value))" />
+                                            <label class="form-check-label" for="@($"day{(int)day.Key}")">
+                                                @day.Key.ToString().Substring(0, 3)
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col">
+                                <label for="generatorValue" class="form-label">Value:</label>
+                                <InputNumber id="generatorValue" @bind-Value="generatorValue" class="form-control" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col">
+                                <button type="button" class="btn btn-primary" @onclick="GenerateValues">
+                                    Generate
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row">
+            <div class="col">
+                <button type="submit" class="btn btn-success me-2">Save</button>
+                <button type="button" class="btn btn-secondary me-2" @onclick="Cancel">Cancel</button>
+                @if (CostId != Guid.Empty)
+                {
+                    <button type="button" class="btn btn-danger" @onclick="Delete">Delete</button>
+                }
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public Guid PlanId { get; set; }
+
+    [Parameter]
+    public Guid CostId { get; set; }
+
+    private CostModel costModel = new();
+    private int? generatorValue;
+    private Dictionary<DayOfWeek, bool> daysOfWeek = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitializeDaysOfWeek();
+
+        if (CostId == Guid.Empty)
+        {
+            // Create new cost
+            costModel = await Mediator.Send(new GenerateCostCommand { PlanId = PlanId });
+        }
+        else
+        {
+            // Show existing cost
+            costModel = await Mediator.Send(new GetCostQuery { CostId = CostId });
+        }
+    }
+
+    private async Task InitializeDaysOfWeek()
+    {
+        daysOfWeek = new Dictionary<DayOfWeek, bool>
+        {
+            { DayOfWeek.Monday, false },
+            { DayOfWeek.Tuesday, false },
+            { DayOfWeek.Wednesday, false },
+            { DayOfWeek.Thursday, false },
+            { DayOfWeek.Friday, false },
+            { DayOfWeek.Saturday, false },
+            { DayOfWeek.Sunday, false }
+        };
+    }
+
+    private void ToggleDay(DayOfWeek day, bool isChecked)
+    {
+        daysOfWeek[day] = isChecked;
+    }
+
+    private void GenerateValues()
+    {
+        if (generatorValue.HasValue)
+        {
+            foreach (var detail in costModel.CostDetails)
+            {
+                if (daysOfWeek.ContainsKey(detail.Date.DayOfWeek) && daysOfWeek[detail.Date.DayOfWeek])
+                {
+                    detail.Value = generatorValue.Value;
+                }
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            foreach (var costDetailModel in costModel.CostDetails)
+            {
+                if (costDetailModel.Value == null)
+                {
+                    costDetailModel.Value = 0;
+                }
+            }
+
+            await Mediator.Send(new SaveCostCommand { Cost = costModel });
+            Navigation.NavigateTo($"/costs/{PlanId}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error saving cost: {ex.Message}");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"/costs/{PlanId}");
+    }
+
+    private async Task Delete()
+    {
+        try
+        {
+            await Mediator.Send(new RemoveCostCommand { CostId = CostId });
+            Navigation.NavigateTo($"/costs/{PlanId}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error deleting cost: {ex.Message}");
+        }
+    }
+}
