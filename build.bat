@@ -28,7 +28,7 @@ if exist "%EXE_PATH%" (
     
     :: Build and publish the project
     echo Building and publishing VersionIncreaser...
-    dotnet publish VersionIncreaser.sln -c Release -f net8.0 -o "VersionIncreaser\bin\Release\net8.0\publish\" --self-contained false
+    dotnet publish VersionIncreaser.sln -c Release -f net8.0 -o "VersionIncreaser\bin\Release\net8.0\publish\"
     
     :: Return to the start folder
     cd "%START_DIR%"
@@ -43,4 +43,5 @@ if exist "%EXE_PATH%" (
 )
 
 echo Script completed.
+pause
 endlocal
