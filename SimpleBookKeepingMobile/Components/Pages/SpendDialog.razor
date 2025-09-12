@@ -1,0 +1,128 @@
+﻿@page "/spend-dialog/{CostId:guid}"
+@using MediatR
+@using SimpleBookKeepingMobile.CommandAndQueries.Costs.Queries
+@using SimpleBookKeepingMobile.CommandAndQueries.Spends.Commands
+@using SimpleBookKeepingMobile.DtoModels
+@inject IMediator _mediator
+
+<h3>Spend Dialog</h3>
+
+<div class="container">
+    <div class="accordion" id="accordionExample">
+        @foreach (var costItem in costItems)
+        {
+            var accordionId = $"accordionItem{costItem.DetailId}";
+            var collapseId = $"collapse{costItem.DetailId}";
+
+            <div class="card">
+                <div class="card-header" id="heading@(accordionId)">
+                    <h2 class="mb-0">
+                        <button class="btn btn-link" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#@collapseId" aria-expanded="true"
+                                aria-controls="@collapseId">
+                            @costItem.Date.ToShortDateString()
+                        </button>
+                    </h2>
+                </div>
+
+                <div id="@collapseId" class="collapse @(costItems.First() == costItem ? "show" : "")"
+                     aria-labelledby="heading@(accordionId)"
+                     data-bs-parent="#accordionExample">
+                    <div class="card-body">
+                        <ul>
+                            @foreach (var spend in costItem.Spends)
+                            {
+                                <li class="mb-2">
+                                    <textarea rows="1" class="form-control form-control-sm"
+                                              @bind="spend.Comment"></textarea>
+                                    <input type="number" class="form-control form-control-sm mt-1"
+                                           @bind="spend.Value" />
+                                </li>
+                            }
+                            <li class="mb-2">
+                                <textarea rows="1" class="form-control form-control-sm"
+                                      placeholder="New Comment"></textarea>
+                                <input type="number" class="form-control form-control-sm mt-1"
+                                       placeholder="0" />
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <button @onclick="SaveChanges" class="btn btn-primary mt-3">Save Changes</button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid CostId { get; set; }
+
+    private IList<CostSpendDetailModel> costItems;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var costSpend = await _mediator.Send(new GetActiveCostSpendDetailsQuery()
+        {
+            UserId = Guid.Empty,
+            CostId = CostId
+        });
+
+        costItems = costSpend.Where(x => x.Date <= DateTime.Now)
+                             .OrderByDescending(x => x.Date).ToList();
+
+        foreach (var item in costItems)
+        {
+            item.Spends.Add(new SpendModel { Comment = "", Value = 0 }); // Add new empty spend item
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        foreach (var item in costItems)
+        {
+            foreach (var spend in item.Spends)
+            {
+                if (spend.Id == Guid.Empty) // New spend
+                {
+                    await _mediator.Send(new InsertSpendCommand
+                    {
+                        SpendModel = new AddSpendModel
+                        {
+                            CostId = item.CostId,
+                            CostDetailId = item.DetailId,
+                            Comment = spend.Comment,
+                            Value = spend.Value,
+                            Image = spend.Image
+                        },
+                        UserId = Guid.Empty
+                    });
+                }
+                else if (string.IsNullOrEmpty(spend.Comment) && spend.Value == 0)
+                {
+                    await _mediator.Send(new DeleteSpendCommand { SpendId = spend.Id }); // Delete empty spend
+                }
+                else
+                {
+                    await _mediator.Send(new UpdateSpendCommand
+                    {
+                        SpendModel = new AddSpendModel
+                        {
+                            Id = spend.Id,
+                            CostId = item.CostId,
+                            CostDetailId = item.DetailId,
+                            Comment = spend.Comment,
+                            Value = spend.Value,
+                            Image = spend.Image
+                        },
+                        UserId = Guid.Empty
+                    });
+                }
+            }
+
+            // Add new empty spend for next entry
+            item.Spends.Add(new SpendModel { Comment = "", Value = 0 });
+        }
+    }
+}
