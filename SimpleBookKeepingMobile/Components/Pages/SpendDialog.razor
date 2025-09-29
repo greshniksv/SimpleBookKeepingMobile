@@ -1,128 +1,163 @@
 ﻿@page "/spend-dialog/{CostId:guid}"
+@using System.Diagnostics
 @using MediatR
 @using SimpleBookKeepingMobile.CommandAndQueries.Costs.Queries
 @using SimpleBookKeepingMobile.CommandAndQueries.Spends.Commands
 @using SimpleBookKeepingMobile.DtoModels
+@inject NavigationManager NavigationManager
 @inject IMediator _mediator
 
-<h3>Spend Dialog</h3>
+<h3>@Title: @Name</h3>
 
-<div class="container">
-    <div class="accordion" id="accordionExample">
-        @foreach (var costItem in costItems)
+<div class="form-control">
+    <div class="accordion accordion-flush" id="spend_list">
+        @{ int number = 0; }
+        @foreach (var spendItem in spends)
         {
-            var accordionId = $"accordionItem{costItem.DetailId}";
-            var collapseId = $"collapse{costItem.DetailId}";
+            var date = spendItem.Date;
+            var detailId = spendItem.DetailId;
+            number = number + 10;
 
-            <div class="card">
-                <div class="card-header" id="heading@(accordionId)">
-                    <h2 class="mb-0">
-                        <button class="btn btn-link" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#@collapseId" aria-expanded="true"
-                                aria-controls="@collapseId">
-                            @costItem.Date.ToShortDateString()
-                        </button>
-                    </h2>
-                </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="@($"flush-heading{number}")">
+                    <button class="accordion-button collapsed" type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="@($"#flush-collapse{number}")" aria-expanded="false"
+                            aria-controls="@($"flush-collapse{number}")" @onclick="() => { showItem[detailId] = !showItem[detailId]; }">
+                        @date.ToString("d")
+                    </button>
+                </h2>
+                <div id="@($"flush-collapse{number}")" class="accordion-collapse collapse @(showItem[detailId]? "show": "")"
+                     aria-labelledby="@($"flush-heading{number}")"
+                     data-bs-parent="#accordionFlushExample">
+                    <div class="accordion-body" style="padding: 5px;">
+                        @foreach (var spend in spendItem.Spends)
+                        {
+                            <div class="mb-3">
+                                <div class="col-auto">
+                                    <div class="input-group mb-2">
 
-                <div id="@collapseId" class="collapse @(costItems.First() == costItem ? "show" : "")"
-                     aria-labelledby="heading@(accordionId)"
-                     data-bs-parent="#accordionExample">
-                    <div class="card-body">
-                        <ul>
-                            @foreach (var spend in costItem.Spends)
-                            {
-                                <li class="mb-2">
-                                    <textarea rows="1" class="form-control form-control-sm"
-                                              @bind="spend.Comment"></textarea>
-                                    <input type="number" class="form-control form-control-sm mt-1"
-                                           @bind="spend.Value" />
-                                </li>
-                            }
-                            <li class="mb-2">
-                                <textarea rows="1" class="form-control form-control-sm"
-                                      placeholder="New Comment"></textarea>
-                                <input type="number" class="form-control form-control-sm mt-1"
-                                       placeholder="0" />
-                            </li>
-                        </ul>
+                                        <textarea class="input-group-text me-1 w-75 text-wrap text-start" autocomplete="off"
+                                                  @bind="spend.Comment">@spend.Comment</textarea>
+
+                                        <input type="text" class="form-control ms-1" autocomplete="off"
+                                               @bind-value="spend.Value" placeholder="Сумма">
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-grid gap-2 pt-1">
+                            <button @onclick="(e => Save(detailId))" class="btn btn-success p-2">Сохранить</button>
+                        </div>
                     </div>
                 </div>
             </div>
         }
-
-        <button @onclick="SaveChanges" class="btn btn-primary mt-3">Save Changes</button>
     </div>
 </div>
 
 @code {
+    private string Title = "Траты";
+    private string Name;
+    private IList<CostSpendDetailModel> spends;
+    private Dictionary<Guid, bool>? showItem;
+
     [Parameter]
     public Guid CostId { get; set; }
 
-    private IList<CostSpendDetailModel> costItems;
-
     protected override async Task OnInitializedAsync()
     {
-        var costSpend = await _mediator.Send(new GetActiveCostSpendDetailsQuery()
-        {
-            UserId = Guid.Empty,
-            CostId = CostId
-        });
+        await LoadSpends();
 
-        costItems = costSpend.Where(x => x.Date <= DateTime.Now)
-                             .OrderByDescending(x => x.Date).ToList();
-
-        foreach (var item in costItems)
+        if (showItem == null)
         {
-            item.Spends.Add(new SpendModel { Comment = "", Value = 0 }); // Add new empty spend item
+            showItem = new Dictionary<Guid, bool>();
+            var first = true;
+            foreach (var item in spends)
+            {
+                showItem.Add(item.DetailId, first);
+                if (first)
+                {
+                    first = false;
+                }
+            }
         }
     }
 
-    private async Task SaveChanges()
+    private async Task LoadSpends()
     {
-        foreach (var item in costItems)
+        try
         {
-            foreach (var spend in item.Spends)
+            var costSpend = await _mediator.Send(new GetActiveCostSpendDetailsQuery()
             {
-                if (spend.Id == Guid.Empty) // New spend
+                UserId = Guid.Empty,
+                CostId = CostId
+            });
+
+            spends = costSpend.Where(x => x.Date <= DateTime.Now)
+                .OrderByDescending(x => x.Date).ToList();
+
+            foreach (var item in spends)
+            {
+                item.Spends.Add(new SpendModel { Comment = "", Value = 0, Id = Guid.Empty }); // Add new empty spend item
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+    }
+
+    private async Task Save(Guid detailId)
+    {
+        var list = spends.FirstOrDefault(s => s.DetailId == detailId)?.Spends ?? new List<SpendModel>();
+
+        foreach (SpendModel model in list)
+        {
+            if (model.Id == Guid.Empty)
+            {
+                if (model.Value != 0 || !string.IsNullOrEmpty(model.Comment))
                 {
-                    await _mediator.Send(new InsertSpendCommand
-                    {
-                        SpendModel = new AddSpendModel
+                    // Create new
+                    await _mediator.Send(new InsertSpendCommand {
+                        SpendModel = new AddSpendModel()
                         {
-                            CostId = item.CostId,
-                            CostDetailId = item.DetailId,
-                            Comment = spend.Comment,
-                            Value = spend.Value,
-                            Image = spend.Image
-                        },
-                        UserId = Guid.Empty
-                    });
-                }
-                else if (string.IsNullOrEmpty(spend.Comment) && spend.Value == 0)
-                {
-                    await _mediator.Send(new DeleteSpendCommand { SpendId = spend.Id }); // Delete empty spend
-                }
-                else
-                {
-                    await _mediator.Send(new UpdateSpendCommand
-                    {
-                        SpendModel = new AddSpendModel
-                        {
-                            Id = spend.Id,
-                            CostId = item.CostId,
-                            CostDetailId = item.DetailId,
-                            Comment = spend.Comment,
-                            Value = spend.Value,
-                            Image = spend.Image
+                            Id = model.Id,
+                            CostDetailId = detailId,
+                            Comment = model.Comment,
+                            Value = model.Value,
+                            CostId = CostId,
+                            Image = string.Empty
                         },
                         UserId = Guid.Empty
                     });
                 }
             }
-
-            // Add new empty spend for next entry
-            item.Spends.Add(new SpendModel { Comment = "", Value = 0 });
+            else if (model.Value == 0 && string.IsNullOrEmpty(model.Comment))
+            {
+                // Delete
+                await _mediator.Send(new DeleteSpendCommand { SpendId = model.Id });
+            }
+            else
+            {
+                // Update
+                await _mediator.Send(new UpdateSpendCommand {
+                    SpendModel = new AddSpendModel()
+                    {
+                        Id = model.Id,
+                        CostDetailId = detailId,
+                        Comment = model.Comment,
+                        Value = model.Value,
+                        CostId = CostId,
+                        Image = string.Empty
+                    }, 
+                    UserId = Guid.Empty
+                });
+            }
         }
+
+        await LoadSpends();
+        StateHasChanged();
     }
 }
