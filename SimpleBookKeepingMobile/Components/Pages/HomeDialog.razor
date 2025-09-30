@@ -5,11 +5,11 @@
 @inject IMediator _mediator
 @inject NavigationManager Navigation
 
-<div id="home_base" class="form-control text-center align-items-center">
+<div id="home_base" class="container py-5">
     @if (isLoading)
     {
         <div class="d-flex justify-content-center">
-            <div class="spinner-border" role="status">
+            <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
         </div>
@@ -18,60 +18,30 @@
     {
         @foreach (var plan in planStatuses)
         {
-            <div class="main-plan-item form-control mt-2">
-                <div class="row mb-1 pt-4">
-                    <div class="col">
-                        <div class="form-outline">
-                            <label class="form-label"><h1>@plan.Name</h1></label>
-                        </div>
+            <div class="card mb-3 shadow p-3 bg-white rounded">
+                <div class="card-body">
+                    <h5 class="card-title">@plan.Name</h5>
+                    <p class="card-text">В кошельке: @plan.Rest руб.</p>
+                    <p class="card-text">Текущее время: @plan.CurrentDateTime</p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: @plan.Progress%;" aria-valuenow="@plan.Progress" aria-valuemin="0" aria-valuemax="100">@plan.Progress%</div>
                     </div>
                 </div>
-
-                <div class="row mb-1">
-                    <div class="col">
-                        <div class="form-outline">
-                            <label class="form-label">В кошельке: @plan.Rest</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col">
-                        <div class="form-outline">
-                            <label class="form-label">Текущее время: @plan.CurrentDateTime</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="progress">
-                    <div style="width: @(plan.Progress)%" 
-                         class="progress-bar" 
-                         role="progressbar" 
-                         aria-valuenow="@plan.Progress" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                    </div>
-                </div>
-
-                <div id="home_list" class="list-group pt-4">
+                <ul class="list-group list-group-flush">
                     @foreach (var cost in plan.CostStatusModels)
                     {
-                        <a href="#" @onclick="() => GoToSpend(cost.Id)" 
-                           class="list-group-item list-group-item-action" 
-                           aria-current="true">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h7 class="mb-1">@cost.Name</h7>
-                                <small>@cost.Balance руб</small>
-                            </div>
-                        </a>
+                        <li class="list-group-item d-flex justify-content-between align-items-center mt-2 clickable" @onclick="() => GoToSpend(cost.Id)">
+                            <span>@cost.Name</span>
+                            <small>@cost.Balance руб</small>
+                        </li>
                     }
-                </div>
+                </ul>
             </div>
         }
     }
     else
     {
-        <div class="alert alert-info">
+        <div class="alert alert-info text-center" role="alert">
             Нет активных планов
         </div>
     }
@@ -92,7 +62,7 @@
         try
         {
             Guid userId = Guid.Empty;
-            List<PlanStatusModel> planStatusModels = new ();
+            List<PlanStatusModel> planStatusModels = new();
             var activePlans = await _mediator.Send(new GetPlansQuery { IsActive = true, UserId = userId });
             foreach (var activePlan in activePlans)
             {
@@ -105,7 +75,6 @@
         }
         catch (Exception ex)
         {
-            // Handle error - you might want to show a toast notification
             Console.WriteLine($"Error loading plan statuses: {ex.Message}");
         }
         finally
@@ -117,12 +86,5 @@
     private void GoToSpend(Guid costId)
     {
         Navigation.NavigateTo($"/spend-dialog/{costId}");
-    }
-
-    // Helper class for API response
-    private class ApiResponse<T>
-    {
-        public T? Result { get; set; }
-        public string? Error { get; set; }
     }
 }

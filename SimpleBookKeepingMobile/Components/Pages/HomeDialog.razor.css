@@ -1,0 +1,27 @@
+﻿
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.clickable {
+    transition: all 0.3s ease; /* Smooth transition for hover and click effects */
+}
+
+    .clickable:hover, .clickable:active {
+        background-color: #f8f9fa; /* Light gray background on hover or active state */
+        transform: scale(1.05); /* Slightly larger size on hover */
+    }
+
+    .clickable:active {
+        animation: pulse 0.5s; /* Apply the pulse animation when clicked */
+    }
