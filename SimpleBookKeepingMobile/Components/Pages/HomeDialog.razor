@@ -22,9 +22,12 @@
             <div class="card mb-1 shadow p-1 bg-white rounded">
                 <div class="card-body">
                     <h5 class="card-title">@plan.Name</h5>
-                    <p class="card-text pt-1">В кошельке: <b>@plan.Rest.ToString("C")</b> </p>
+                    <p class="card-text pt-1">В кошельке: <b>@plan.Rest.ToString("N0") руб.</b> </p>
                     <div class="progress mb-3">
-                        <div class="progress-bar bg-info" role="progressbar" style="width: @plan.Progress%;" aria-valuenow="@plan.Progress" aria-valuemin="0" aria-valuemax="100">@plan.Progress%</div>
+                        <div class="progress-bar bg-info" role="progressbar" style="width: @plan.Progress%;"
+                             aria-valuenow="@plan.Progress" aria-valuemin="0" aria-valuemax="100">
+                            @plan.Progress%
+                        </div>
                     </div>
                 </div>
                 <ul class="list-group list-group-flush">
@@ -67,7 +70,6 @@
             foreach (var activePlan in activePlans)
             {
                 var planStatus = await _mediator.Send(new GetPlanStatusQuery { PlanId = activePlan.Id });
-                planStatus.CurrentDateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
                 planStatusModels.Add(planStatus);
             }
 
