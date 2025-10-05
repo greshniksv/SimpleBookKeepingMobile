@@ -1,4 +1,29 @@
-﻿/* Стилизация компонента */
+﻿/* Header */
+.page-header {
+  /*  background: linear-gradient(to bottom, #4A4A4A, white);
+    color: white;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 24px;*/
+    /*box-shadow: 0 4px 12px rgba(221, 229, 131, 0.3);*/
+
+    background-color: #4FACD7;
+    color: white;
+    padding: 18px 15px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(79, 172, 215, 0.9);
+    margin: 0px;
+    border-radius: 0.50rem;
+    margin-bottom: 20px;
+}
+
+.page-title {
+    font-size: 18px;
+    margin: 0;
+    line-height: 0.5;
+}
+
+/* Стилизация компонента */
 .accordion-button {
     background-color: #f8f9fa;
     border-radius: 0.25rem;
@@ -32,3 +57,7 @@
         background-color: #218838;
         border-color: #1e7e34;
     }
+
+.comment {
+    width: 70% !important;
+}

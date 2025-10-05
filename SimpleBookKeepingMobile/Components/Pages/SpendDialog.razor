@@ -7,7 +7,9 @@
 @inject NavigationManager NavigationManager
 @inject IMediator _mediator
 
-<h3>@Title: @Name</h3>
+<div class="page-header">
+    <h3 class="page-title">@Title: @Name</h3>
+</div>
 
 <div class="form-control">
     <div class="accordion accordion-flush" id="spend_list">
@@ -37,10 +39,10 @@
                                 <div class="col-auto">
                                     <div class="input-group mb-2">
 
-                                        <textarea class="input-group-text me-1 w-75 text-wrap text-start" autocomplete="off"
+                                        <textarea class="input-group-text me-1 w-75 text-wrap text-start comment" autocomplete="off"
                                                   @bind="spend.Comment">@spend.Comment</textarea>
 
-                                        <input type="text" class="form-control ms-1" autocomplete="off"
+                                        <input type="text" class="form-control ms-1 sum" autocomplete="off"
                                                @bind-value="spend.Value" placeholder="Сумма">
                                     </div>
                                 </div>
@@ -58,7 +60,7 @@
 </div>
 
 @code {
-    private string Title = "Траты";
+    private string Title = "Траты: ";
     private string Name;
     private IList<CostSpendDetailModel> spends;
     private Dictionary<Guid, bool>? showItem;
@@ -89,11 +91,16 @@
     {
         try
         {
+            var costInfo = await _mediator.Send(new GetCostQuery() { CostId = CostId });
+            Title = costInfo.Name;
+
             var costSpend = await _mediator.Send(new GetActiveCostSpendDetailsQuery()
             {
                 UserId = Guid.Empty,
                 CostId = CostId
             });
+
+
 
             spends = costSpend.Where(x => x.Date <= DateTime.Now)
                 .OrderByDescending(x => x.Date).ToList();

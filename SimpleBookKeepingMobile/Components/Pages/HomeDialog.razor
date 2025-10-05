@@ -1,11 +1,12 @@
 ﻿@page "/"
+@using System.Globalization
 @using MediatR
 @using SimpleBookKeepingMobile.CommandAndQueries.Plans.Queries
 @using SimpleBookKeepingMobile.DtoModels
 @inject IMediator _mediator
 @inject NavigationManager Navigation
 
-<div id="home_base" class="container py-5">
+<div id="home_base" class="container">
     @if (isLoading)
     {
         <div class="d-flex justify-content-center">
@@ -18,11 +19,10 @@
     {
         @foreach (var plan in planStatuses)
         {
-            <div class="card mb-3 shadow p-3 bg-white rounded">
+            <div class="card mb-1 shadow p-1 bg-white rounded">
                 <div class="card-body">
                     <h5 class="card-title">@plan.Name</h5>
-                    <p class="card-text">В кошельке: @plan.Rest руб.</p>
-                    <p class="card-text">Текущее время: @plan.CurrentDateTime</p>
+                    <p class="card-text pt-1">В кошельке: <b>@plan.Rest.ToString("C")</b> </p>
                     <div class="progress mb-3">
                         <div class="progress-bar bg-info" role="progressbar" style="width: @plan.Progress%;" aria-valuenow="@plan.Progress" aria-valuemin="0" aria-valuemax="100">@plan.Progress%</div>
                     </div>
@@ -83,8 +83,9 @@
         }
     }
 
-    private void GoToSpend(Guid costId)
+    private async Task GoToSpend(Guid costId)
     {
+        await Task.Delay(100);
         Navigation.NavigateTo($"/spend-dialog/{costId}");
     }
 }
